@@ -43,3 +43,7 @@ type Env = [Name]
 
 iEval :: ITerm -> Env -> Value
 iEval = undefined
+
+type Result a = Either String a
+
+
