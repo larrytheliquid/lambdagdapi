@@ -39,10 +39,17 @@ vapp :: Value -> Value -> Value
 vapp (VLam f) v = f v
 vapp (VNeutral n) v = VNeutral (NApp n v)
 
-type Env = [Name]
+type Env = [Value]
 
 iEval :: ITerm -> Env -> Value
-iEval = undefined
+iEval (Ann ct _)  env = cEval ct env
+iEval (Free n)    env = vfree n
+iEval (Bound i)   env = env !! i
+iEval (it :@: ct) env = vapp (iEval it env) (cEval ct env)
+
+cEval :: CTerm -> Env -> Value
+cEval (Inf it) env = iEval it env
+cEval (Lam ct) env = VLam (\v -> cEval ct (v:env))
 
 type Result a = Either String a
 
