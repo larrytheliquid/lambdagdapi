@@ -88,12 +88,23 @@ iType _ ctx (Free x) =
     Just (HasType tp)   -> return tp
     Nothing             -> throwError ("unknown type identifier: " ++ show x)
 iType i ctx (it :@: ct) = do
-  itp <- iType i ctx it
-  case itp of
+  tp <- iType i ctx it
+  case tp of
     Fun _ tp' -> do
       cType i ctx ct tp'
       return tp'
     TFree x -> throwError ("illegal application against non-function: " ++ show x)
 
 cType :: Int -> Context -> CTerm -> Type -> Result ()
-cType = undefined
+cType i ctx (Inf it) tp = do
+  tp' <- iType i ctx it
+  unless (tp == tp')
+    (throwError ("type mismatch: " ++ show tp' ++ " vs " ++ show tp))
+cType i ctx (Lam ct) (Fun tp tp') =
+  cType (succ i) ((Local i, HasType tp):ctx)
+    (cSubst 0 (Free (Local i)) ct) tp'
+cType _ _ (Lam _) tp = throwError $
+  "type mismatch / expecting function: " ++ show tp
+
+cSubst :: Int -> ITerm -> CTerm -> CTerm
+cSubst = undefined
