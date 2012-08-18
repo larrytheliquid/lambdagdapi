@@ -81,7 +81,7 @@ iType i ctx (Ann ct tp) = do
   cKind ctx tp Star
   cType i ctx ct tp
   return tp
-iType _ _ (Bound _) = undefined
+iType _ _ (Bound _) = undefined -- never encountered
 iType _ ctx (Free x) =
   case lookup x ctx of
     Just (HasKind Star) -> undefined
@@ -103,8 +103,17 @@ cType i ctx (Inf it) tp = do
 cType i ctx (Lam ct) (Fun tp tp') =
   cType (succ i) ((Local i, HasType tp):ctx)
     (cSubst 0 (Free (Local i)) ct) tp'
-cType _ _ (Lam _) tp = throwError $
-  "type mismatch / expecting function: " ++ show tp
+cType _ _ (Lam _) (TFree x) = throwError $
+  "type mismatch / variable rather than function: " ++ show x
 
 cSubst :: Int -> ITerm -> CTerm -> CTerm
-cSubst = undefined
+cSubst i it (Inf it') = Inf (iSubst i it it')
+cSubst i it (Lam ct) = Lam (cSubst (succ i) it ct)
+
+iSubst :: Int -> ITerm -> ITerm -> ITerm
+iSubst i it (Ann ct tp) = Ann (cSubst i it ct) tp
+iSubst i it (Bound i') = if i == i' then it else Bound i'
+iSubst _ _ (Free x) = Free x
+iSubst i it (it' :@: ct) = iSubst i it it' :@: cSubst i it ct
+
+
