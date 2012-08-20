@@ -116,4 +116,17 @@ iSubst i it (Bound i') = if i == i' then it else Bound i'
 iSubst _ _ (Free x) = Free x
 iSubst i it (it' :@: ct) = iSubst i it it' :@: cSubst i it ct
 
+quote0 :: Value -> CTerm
+quote0 = quote 0
 
+quote :: Int -> Value -> CTerm
+quote i (VLam f) = Lam $ quote (succ i) (f (vfree (Quote i)))
+quote i (VNeutral n) = Inf $ neutralQuote i n
+
+neutralQuote :: Int -> Neutral -> ITerm
+neutralQuote i (NFree x) = boundfree i x
+neutralQuote i (NApp n v) = neutralQuote i n :@: quote i v
+
+boundfree :: Int -> Name -> ITerm
+boundfree i (Quote j) = Bound (i - j - 1)
+boundfree _ x = Free x
