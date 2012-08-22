@@ -90,8 +90,8 @@ iType _ ctx (Free x) =
 iType i ctx (it :@: ct) = do
   tp <- iType i ctx it
   case tp of
-    Fun _ tp' -> do
-      cType i ctx ct tp'
+    Fun tp tp' -> do
+      cType i ctx ct tp
       return tp'
     TFree x -> throwError ("illegal application against non-function: " ++ show x)
 
@@ -130,3 +130,40 @@ neutralQuote i (NApp n v) = neutralQuote i n :@: quote i v
 boundfree :: Int -> Name -> ITerm
 boundfree i (Quote j) = Bound (i - j - 1)
 boundfree _ x = Free x
+
+----------------------------------------------------------------------
+
+id' :: CTerm
+id' = Lam $ Inf $ Bound 0
+
+const' :: CTerm
+const' = Lam $ Lam $ Inf $ Bound 1
+
+tfree :: String -> Type
+tfree name = TFree $ Global name
+
+free :: String -> CTerm
+free name = Inf $ Free $ Global name
+
+term1 :: ITerm
+term1 = Ann id' (Fun (tfree "a") (tfree "a")) :@: free "y"
+
+term2 :: ITerm
+term2 = Ann const' (Fun
+  (Fun (tfree "b") (tfree "b"))
+  (Fun (tfree "a")
+       (Fun (tfree "b") (tfree "b"))))
+  :@: id' :@: free "y"
+
+ctx1 :: Context
+ctx1 = [(Global "y", HasType (tfree "a")),
+        (Global "a", HasKind Star)]
+
+ctx2 :: Context
+ctx2 = [(Global "b", HasKind Star)] ++ ctx1
+
+-- quote0 $ iEval term1 [] = Inf (Free (Global "y"))
+-- quote0 $ iEval term2 [] = Lam (Inf (Bound 0))
+-- iType0 ctx1 term1 = Right (TFree (Global "a"))
+-- iType0 ctx2 term2 = Right (Fun (TFree (Global "b")) (TFree (Global "b")))
+
