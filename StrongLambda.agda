@@ -24,7 +24,7 @@ postulate eval↑ : ∀{Γ τ} → Term↑ Γ τ → Canonical
 postulate eval↓ : ∀{Γ τ} → Term↓ Γ τ → Canonical
 
 data Term↑ Γ where
-  _∶_ : (ρ : Term↓ Γ ⋆) →
+  _∶ʳ_ : (ρ : Term↓ Γ ⋆) →
     let τ = eval↓ ρ in
     Term↓ Γ τ → Term↑ Γ τ
   Π : (ρ : Term↓ Γ ⋆) →
