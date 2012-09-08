@@ -27,10 +27,20 @@ data Term↑ Γ where
   _∶_ : (ρ : Term↓ Γ ⋆) →
     let τ = eval↓ ρ in
     Term↓ Γ τ → Term↑ Γ τ
+  Π : (ρ : Term↓ Γ ⋆) →
+    let τ = eval↓ ρ in
+    Term↓ (τ ∷ Γ) ⋆ →
+    Term↑ Γ ⋆
   ⋆ : Term↑ Γ ⋆
   χ : ∀{τ} → τ ∈ Γ → Term↑ Γ τ
-  -- _$_ : ∀{τ τ′} → Term↑ Γ (τ `→ τ′) → Term↓ Γ τ → Term↑ Γ τ′
+  _$_ : ∀{τ τ′} →
+    Term↑ Γ (Π τ τ′) →
+    (ρ : Term↓ Γ τ) →
+    let τ′′ = τ′ (eval↓ ρ) in
+    Term↑ Γ τ′′
 
 data Term↓ Γ where
   ↓ : ∀{τ} → Term↑ Γ τ → Term↓ Γ τ
-  -- `λ : ∀ {τ τ′} → Term↓ (τ ∷ Γ) τ′ → Term↓ Γ (τ `→ τ′)
+  `λ : ∀ {τ τ′} →
+    Term↓ (τ ∷ Γ) (τ′ τ) →
+    Term↓ Γ (Π τ τ′)
