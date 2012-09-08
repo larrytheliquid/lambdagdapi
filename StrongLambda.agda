@@ -33,12 +33,14 @@ eval↑ : ∀{Γ τ} → Term↑ Γ τ → Value
 eval↓ : ∀{Γ τ} → Term↓ Γ τ → Value
 
 data Term↑ Γ where
-  _∶ʳ_ : (ρ : Term↓ Γ ⋆) →
+  _∶ʳ_ :
+    (ρ : Term↓ Γ ⋆) →
     let τ = eval↓ ρ in
-    Term↓ Γ τ → Term↑ Γ τ
+    (e : Term↓ Γ τ) →
+    Term↑ Γ τ
   Π : (ρ : Term↓ Γ ⋆) →
     let τ = eval↓ ρ in
-    Term↓ (τ ∷ Γ) ⋆ →
+    (ρ′ : Term↓ (τ ∷ Γ) ⋆) →
     Term↑ Γ ⋆
   ⋆ : Term↑ Γ ⋆
   χ : ∀{τ} → τ ∈ Γ → Term↑ Γ τ
@@ -54,10 +56,10 @@ data Term↓ Γ where
     Term↓ (τ ∷ Γ) (τ′ τ) →
     Term↓ Γ (Π τ τ′)
 
-eval↑ (ρ ∶ʳ y) = {!!}
-eval↑ (Π ρ y) = {!!}
+eval↑ (_ ∶ʳ e) = eval↓ e
+eval↑ (Π ρ ρ′) = Π (eval↓ ρ) (λ _ → eval↓ ρ′)
 eval↑ ⋆ = ⋆
-eval↑ (χ y) = {!!}
+eval↑ (χ {τ} _) = τ -- TODO
 eval↑ (e $ e′) with eval↑ e
 ... | `λ λx→v = λx→v (eval↓ e′)
 ... | ↓ n = ↓ (n $ eval↓ e′)
