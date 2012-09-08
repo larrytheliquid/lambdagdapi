@@ -23,38 +23,45 @@ data Value where
 
 data Neutral where
   χ : String → Neutral
-  _$_ : Neutral → Value → Neutral
+  _$_ : (n : Neutral) (v : Value) → Neutral
 
 Context = List Value
 
+syntax Term↓ Γ τ = ↓ τ ⊣ Γ
+syntax Term↑ Γ τ = ↑ τ ⊣ Γ
 data Term↑ Context : Value → Set
 data Term↓ Context : Value → Set
-eval↑ : ∀{Γ τ} → Term↑ Γ τ → Value
-eval↓ : ∀{Γ τ} → Term↓ Γ τ → Value
+eval↑ : ∀{Γ τ} → ↑ τ ⊣ Γ → Value
+eval↓ : ∀{Γ τ} → ↓ τ ⊣ Γ → Value
 
 data Term↑ Γ where
   _∶ʳ_ :
-    (ρ : Term↓ Γ ⋆) →
+    (ρ : ↓ ⋆ ⊣ Γ) →
     let τ = eval↓ ρ in
-    (e : Term↓ Γ τ) →
-    Term↑ Γ τ
-  Π : (ρ : Term↓ Γ ⋆) →
+    (e : ↓ τ ⊣ Γ) →
+    ↑ τ ⊣ Γ
+  Π :
+    (ρ : ↓ ⋆ ⊣ Γ) →
     let τ = eval↓ ρ in
-    (ρ′ : Term↓ (τ ∷ Γ) ⋆) →
-    Term↑ Γ ⋆
-  ⋆ : Term↑ Γ ⋆
-  χ : ∀{τ} → τ ∈ Γ → Term↑ Γ τ
-  _$_ : ∀{τ τ′} →
-    (e : Term↑ Γ (Π τ τ′)) →
-    (e′ : Term↓ Γ τ) →
+    (ρ′ : ↓ ⋆ ⊣ τ ∷ Γ) →
+    ↑ ⋆ ⊣ Γ
+  ⋆ : ↑ ⋆ ⊣ Γ
+  χ : ∀{τ}
+    (i : τ ∈ Γ) →
+    ↑ τ ⊣ Γ
+  _$_ : ∀{τ τ′}
+    (e : ↑ Π τ τ′ ⊣ Γ)
+    (e′ : ↓ τ ⊣ Γ) →
     let τ′′ = τ′ (eval↓ e′) in
-    Term↑ Γ τ′′
+    ↑ τ′′ ⊣ Γ
 
 data Term↓ Γ where
-  ↓ : ∀{τ} → Term↑ Γ τ → Term↓ Γ τ
-  `λ : ∀ {τ τ′} →
-    Term↓ (τ ∷ Γ) (τ′ τ) →
-    Term↓ Γ (Π τ τ′)
+  ↓ : ∀{τ}
+    (e : ↑ τ ⊣ Γ) →
+    ↓ τ ⊣ Γ
+  `λ : ∀ {τ τ′}
+    (e : ↓ τ′ τ ⊣ τ ∷ Γ) →
+    ↓ Π τ τ′ ⊣ Γ
 
 eval↑ (_ ∶ʳ e) = eval↓ e
 eval↑ (Π ρ ρ′) = Π (eval↓ ρ) (λ _ → eval↓ ρ′)
