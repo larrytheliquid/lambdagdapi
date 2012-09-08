@@ -12,16 +12,25 @@ data Name : Set where
   global : String → Name
   local : ℕ → Name
 
-data Canonical : Set where
+data Canonical : Set
+data Neutral : Set
+
+data Canonical where
+  ↓ : Neutral → Canonical
   ⋆ : Canonical
   Π : Canonical → (Canonical → Canonical) → Canonical
+  `λ : (Canonical → Canonical) → Canonical
+
+data Neutral where
+  χ : String → Neutral
+  _$_ : Neutral → Canonical → Neutral
 
 Context = List Canonical
 
 data Term↑ Context : Canonical → Set
 data Term↓ Context : Canonical → Set
 postulate eval↑ : ∀{Γ τ} → Term↑ Γ τ → Canonical
-postulate eval↓ : ∀{Γ τ} → Term↓ Γ τ → Canonical
+eval↓ : ∀{Γ τ} → Term↓ Γ τ → Canonical
 
 data Term↑ Γ where
   _∶ʳ_ : (ρ : Term↓ Γ ⋆) →
@@ -44,3 +53,6 @@ data Term↓ Γ where
   `λ : ∀ {τ τ′} →
     Term↓ (τ ∷ Γ) (τ′ τ) →
     Term↓ Γ (Π τ τ′)
+
+eval↓ (↓ e) = eval↑ e
+eval↓ (`λ e) = `λ λ _ → eval↓ e
