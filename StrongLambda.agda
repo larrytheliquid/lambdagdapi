@@ -1,7 +1,7 @@
 {-# OPTIONS --no-positivity-check #-}
 open import Data.Nat hiding ( _≟_ )
 open import Data.String
-open import Data.List
+open import Data.List hiding ( [_] )
 module StrongLambda where
 
 infixr 3 Γ⊢e:↑τ Γ⊢e:↓τ
@@ -23,7 +23,7 @@ data Value : Set
 data Neutral : Set
 
 data Value where
-  ↓ : (n : Neutral) → Value
+  [_] : (n : Neutral) → Value
   ⋆ : Value
   Π : (τ : Value) → (τ′ : Value → Value) → Value
   `λ : (λx→v : Value → Value) → Value
@@ -48,7 +48,7 @@ eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Value
 Γ⊢e:↓τ _ _ f = ∀ ρ → f ρ
 
 data _⊢e:↑_ Γ where
-  _∶ʳ_ :
+  _:ʳ_ :
     ⟫ Γ ⊢ ρ :↓ ⋆
     ⟫ let τ = eval↓ ρ in
     ⟫ Γ ⊢ e :↓ τ
@@ -79,7 +79,7 @@ data _⊢e:↑_ Γ where
     ⟫ Γ ⊢e:↑ τ′′
 
 data _⊢e:↓_ Γ where
-  ↓ : ∀{τ} →
+  [_] : ∀{τ} →
     ⟫ Γ ⊢ e :↑ τ
     ------------
     ⟫ Γ ⊢e:↓ τ
@@ -89,14 +89,26 @@ data _⊢e:↓_ Γ where
     ------------------
     ⟫ Γ ⊢e:↓ Π τ τ′
 
-eval↑ (_ ∶ʳ e) = eval↓ e
+eval↑ (_ :ʳ e) = eval↓ e
 eval↑ ⋆ = ⋆
 eval↑ (Π ρ ρ′) = Π (eval↓ ρ) (λ _ → eval↓ ρ′)
 eval↑ (χ {τ} _) = τ -- TODO
 eval↑ (e $ e′) with eval↑ e
 ... | `λ λx→v = λx→v (eval↓ e′)
-... | ↓ n = ↓ (n $ eval↓ e′)
+... | [ n ] = [ n $ eval↓ e′ ]
 ... | x = x -- BAD
 
-eval↓ (↓ e) = eval↑ e
+eval↓ [ e ] = eval↑ e
 eval↓ (`λ e) = `λ λ _ → eval↓ e
+
+----------------------------------------------------------------------
+
+idt : ([ χ "Bool" ] ∷ []) ⊢e:↑ ⋆
+idt = Π [ ⋆ ] [ Π [ χ here ] [ χ (there here) ] ]
+
+ide : ([ χ "Bool" ] ∷ []) ⊢e:↓ eval↑ idt
+ide = `λ (`λ [ χ here ])
+
+id' : ([ χ "Bool" ] ∷ []) ⊢e:↑ _
+id' = [ idt ] :ʳ ide
+
