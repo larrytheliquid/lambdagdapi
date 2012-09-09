@@ -29,43 +29,57 @@ Context = List Value
 
 syntax Term↓ Γ τ = ↓ τ ⊣ Γ
 syntax Term↑ Γ τ = ↑ τ ⊣ Γ
+syntax Γ⊢ρ:↑τ Γ τ (λ ρ → X) = Γ ⊢ ρ :↑ τ ⇒ X
+syntax Γ⊢ρ:↓τ Γ τ (λ ρ → X) = Γ ⊢ ρ :↓ τ ⇒ X
 data Term↑ Context : Value → Set
 data Term↓ Context : Value → Set
 eval↑ : ∀{Γ τ} → ↑ τ ⊣ Γ → Value
 eval↓ : ∀{Γ τ} → ↓ τ ⊣ Γ → Value
 
+Γ⊢ρ:↑τ : (Γ : Context) (τ : Value) →
+  (Term↑ Γ τ → Set) → Set
+Γ⊢ρ:↑τ _ _ f = ∀ ρ → f ρ
+
+Γ⊢ρ:↓τ : (Γ : Context) (τ : Value) →
+  (Term↓ Γ τ → Set) → Set
+Γ⊢ρ:↓τ _ _ f = ∀ ρ → f ρ
+
 data Term↑ Γ where
   _∶ʳ_ :
-    (ρ : ↓ ⋆ ⊣ Γ) →
-    let τ = eval↓ ρ in
-    (e : ↓ τ ⊣ Γ) →
-    ↑ τ ⊣ Γ
-  Π :
-    (ρ : ↓ ⋆ ⊣ Γ) →
-    let τ = eval↓ ρ in
-    (ρ′ : ↓ ⋆ ⊣ τ ∷ Γ) →
-    ↑ ⋆ ⊣ Γ
+      Γ ⊢ ρ :↓ ⋆
+   ⇒ let τ = eval↓ ρ in
+      Γ ⊢ e :↓ τ
+   ⇒ ↑ τ ⊣ Γ
+
   ⋆ : ↑ ⋆ ⊣ Γ
+
+  Π :
+       Γ ⊢ ρ :↓ ⋆
+    ⇒ let τ = eval↓ ρ in
+       τ ∷ Γ ⊢ ρ′ :↓ ⋆
+    ⇒ ↑ ⋆ ⊣ Γ
+
   χ : ∀{τ}
     (i : τ ∈ Γ) →
     ↑ τ ⊣ Γ
-  _$_ : ∀{τ τ′}
-    (e : ↑ Π τ τ′ ⊣ Γ)
-    (e′ : ↓ τ ⊣ Γ) →
-    let τ′′ = τ′ (eval↓ e′) in
-    ↑ τ′′ ⊣ Γ
+
+  _$_ : ∀{τ τ′} →
+       Γ ⊢ e :↑ Π τ τ′
+    ⇒ (Γ ⊢ e′ :↓ τ
+    ⇒ let τ′′ = τ′ (eval↓ e′) in
+      ↑ τ′′ ⊣ Γ)
 
 data Term↓ Γ where
-  ↓ : ∀{τ}
-    (e : ↑ τ ⊣ Γ) →
-    ↓ τ ⊣ Γ
-  `λ : ∀ {τ τ′}
-    (e : ↓ τ′ τ ⊣ τ ∷ Γ) →
-    ↓ Π τ τ′ ⊣ Γ
+  ↓ : ∀{τ} →
+       Γ ⊢ e :↑ τ
+    ⇒ ↓ τ ⊣ Γ
+  `λ : ∀ {τ τ′} →
+      τ ∷ Γ ⊢ e :↓ τ′ τ
+    ⇒ ↓ Π τ τ′ ⊣ Γ
 
 eval↑ (_ ∶ʳ e) = eval↓ e
-eval↑ (Π ρ ρ′) = Π (eval↓ ρ) (λ _ → eval↓ ρ′)
 eval↑ ⋆ = ⋆
+eval↑ (Π ρ ρ′) = Π (eval↓ ρ) (λ _ → eval↓ ρ′)
 eval↑ (χ {τ} _) = τ -- TODO
 eval↑ (e $ e′) with eval↑ e
 ... | `λ λx→v = λx→v (eval↓ e′)
