@@ -4,6 +4,10 @@ open import Data.String
 open import Data.List
 module StrongLambda where
 
+infixr 3 Γ⊢e:↑τ Γ⊢e:↓τ
+syntax Γ⊢e:↑τ Γ τ (λ e → X) = Γ ⊢ e :↑ τ ⇒ X
+syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ⇒ X
+
 data _∈_ {A : Set} (x : A) : List A → Set where
   here : ∀{xs} → x ∈ (x ∷ xs )
   there : ∀{y xs} → x ∈ xs → x ∈ (y ∷ xs)
@@ -27,8 +31,6 @@ data Neutral where
 
 Context = List Value
 
-syntax Γ⊢e:↑τ Γ τ (λ e → X) = Γ ⊢ e :↑ τ ⇒ X
-syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ⇒ X
 data _⊢e:↑_ Context : Value → Set
 data _⊢e:↓_ Context : Value → Set
 eval↑ : ∀{Γ τ} → Γ ⊢e:↑ τ → Value
@@ -63,9 +65,9 @@ data _⊢e:↑_ Γ where
 
   _$_ : ∀{τ τ′} →
        Γ ⊢ e :↑ Π τ τ′
-    ⇒ (Γ ⊢ e′ :↓ τ
+    ⇒ Γ ⊢ e′ :↓ τ
     ⇒ let τ′′ = τ′ (eval↓ e′) in
-      Γ ⊢e:↑ τ′′)
+      Γ ⊢e:↑ τ′′
 
 data _⊢e:↓_ Γ where
   ↓ : ∀{τ} →
