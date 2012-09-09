@@ -8,6 +8,9 @@ infixr 3 Γ⊢e:↑τ Γ⊢e:↓τ
 syntax Γ⊢e:↑τ Γ τ (λ e → X) = Γ ⊢ e :↑ τ ⟫ X
 syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ⟫ X
 
+⟫_ : ∀{a} {A : Set a} → A → A
+⟫ x = x
+
 data _∈_ {A : Set} (x : A) : List A → Set where
   here : ∀{xs} → x ∈ (x ∷ xs )
   there : ∀{y xs} → x ∈ xs → x ∈ (y ∷ xs)
@@ -43,9 +46,6 @@ eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Value
 Γ⊢e:↓τ : (Γ : Context) (τ : Value) →
   (Γ ⊢e:↓ τ → Set) → Set
 Γ⊢e:↓τ _ _ f = ∀ ρ → f ρ
-
-⟫_ : ∀{a} {A : Set a} → A → A
-⟫ x = x
 
 data _⊢e:↑_ Γ where
   _∶ʳ_ :
