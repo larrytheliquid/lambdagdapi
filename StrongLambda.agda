@@ -5,8 +5,8 @@ open import Data.List
 module StrongLambda where
 
 infixr 3 Γ⊢e:↑τ Γ⊢e:↓τ
-syntax Γ⊢e:↑τ Γ τ (λ e → X) = Γ ⊢ e :↑ τ ⇒ X
-syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ⇒ X
+syntax Γ⊢e:↑τ Γ τ (λ e → X) = Γ ⊢ e :↑ τ ∣ X
+syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ∣ X
 
 data _∈_ {A : Set} (x : A) : List A → Set where
   here : ∀{xs} → x ∈ (x ∷ xs )
@@ -44,38 +44,41 @@ eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Value
   (Γ ⊢e:↓ τ → Set) → Set
 Γ⊢e:↓τ _ _ f = ∀ ρ → f ρ
 
+∣_ : ∀{a} {A : Set a} → A → A
+∣ x = x
+
 data _⊢e:↑_ Γ where
   _∶ʳ_ :
-      Γ ⊢ ρ :↓ ⋆
-   ⇒ let τ = eval↓ ρ in
-      Γ ⊢ e :↓ τ
-   ⇒ Γ ⊢e:↑ τ
+    ∣ Γ ⊢ ρ :↓ ⋆
+    ∣ let τ = eval↓ ρ in
+    ∣ Γ ⊢ e :↓ τ
+    ∣ Γ ⊢e:↑ τ
 
   ⋆ : Γ ⊢e:↑ ⋆
 
   Π :
-       Γ ⊢ ρ :↓ ⋆
-    ⇒ let τ = eval↓ ρ in
-       τ ∷ Γ ⊢ ρ′ :↓ ⋆
-    ⇒ Γ ⊢e:↑ ⋆
+    ∣ Γ ⊢ ρ :↓ ⋆
+    ∣ let τ = eval↓ ρ in
+    ∣ τ ∷ Γ ⊢ ρ′ :↓ ⋆
+    ∣ Γ ⊢e:↑ ⋆
 
   χ : ∀{τ}
     (i : τ ∈ Γ) →
     Γ ⊢e:↑ τ
 
   _$_ : ∀{τ τ′} →
-       Γ ⊢ e :↑ Π τ τ′
-    ⇒ Γ ⊢ e′ :↓ τ
-    ⇒ let τ′′ = τ′ (eval↓ e′) in
-      Γ ⊢e:↑ τ′′
+    ∣ Γ ⊢ e :↑ Π τ τ′
+    ∣ Γ ⊢ e′ :↓ τ
+    ∣ let τ′′ = τ′ (eval↓ e′) in
+    ∣ Γ ⊢e:↑ τ′′
 
 data _⊢e:↓_ Γ where
   ↓ : ∀{τ} →
-       Γ ⊢ e :↑ τ
-    ⇒ Γ ⊢e:↓ τ
+    ∣ Γ ⊢ e :↑ τ
+    ∣ Γ ⊢e:↓ τ
   `λ : ∀ {τ τ′} →
-      τ ∷ Γ ⊢ e :↓ τ′ τ
-    ⇒ Γ ⊢e:↓ Π τ τ′
+    ∣ τ ∷ Γ ⊢ e :↓ τ′ τ
+    ∣ Γ ⊢e:↓ Π τ τ′
 
 eval↑ (_ ∶ʳ e) = eval↓ e
 eval↑ ⋆ = ⋆
