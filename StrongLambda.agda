@@ -2,6 +2,7 @@
 open import Data.Nat hiding ( _≟_ )
 open import Data.String
 open import Data.Maybe
+open import Data.Product
 open import Data.List hiding ( [_] )
 module StrongLambda where
 
@@ -15,16 +16,11 @@ syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ⟫ X
 ⟫ x = x
 
 data _∈_ {A : Set} (x : A) : List A → Set where
-  here : ∀{xs} → (n : Maybe String) → x ∈ (x ∷ xs )
+  here : ∀{xs} → x ∈ (x ∷ xs )
   there : ∀{y xs} → x ∈ xs → x ∈ (y ∷ xs)
 
-name : ∀ {A} {x : A} {xs} → x ∈ xs → Maybe String
-name (here nothing) = nothing
-name (here (just n)) = just n
-name (there p) = name p
-
 index : ∀ {A} {x : A} {xs} → x ∈ xs → ℕ
-index (here _) = zero
+index here = zero
 index (there p) = suc (index p)
 
 data Lookup {A : Set} (xs : List A) : ℕ → Set where
@@ -38,14 +34,12 @@ elim-lookup x (outside _) = x
 
 _!_ : {A : Set} (xs : List A) (n : ℕ) → Lookup xs n
 [] ! n = outside n
-(x ∷ xs) ! zero = inside x (here nothing)
+(x ∷ xs) ! zero = inside x here
 (x ∷ xs) ! suc n with xs ! n
 (x ∷ xs) ! suc .(index p) | inside y p = inside y (there p)
 (x ∷ xs) ! suc .(length xs + n) | outside n = outside n
 
 -----------------------------------------------------------------
-
-Name = Maybe String
 
 data Value : Set
 data Neutral : Set
@@ -60,12 +54,17 @@ data Neutral where
   χ : String → Neutral
   _$_ : (n : Neutral) (v : Value) → Neutral
 
-Context = List Value
+data Name : Set where
+  local : Name
+  global : (label : String) → Name
+
+Context = List (Name × Value)
+Environment = List Value
 
 data _⊢e:↑_ Context : Value → Set
 data _⊢e:↓_ Context : Value → Set
-eval↑ : ∀{Γ τ} → Γ ⊢e:↑ τ → Context → Value
-eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Context → Value
+eval↑ : ∀{Γ τ} → Γ ⊢e:↑ τ → Environment → Value
+eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Environment → Value
 
 Γ⊢e:↑τ : (Γ : Context) (τ : Value) →
   (Γ ⊢e:↑ τ → Set) → Set
@@ -90,12 +89,12 @@ data _⊢e:↑_ Γ where
   Π :
     ⟫ Γ ⊢ ρ :↓ ⋆
     ⟫ let τ = eval↓ ρ [] in
-    ⟫ τ ∷ Γ ⊢ ρ′ :↓ ⋆
+    ⟫ (local , τ) ∷ Γ ⊢ ρ′ :↓ ⋆
     --------------------
     ⟫ Γ ⊢e:↑ ⋆
 
-  χ : ∀{τ}
-    (i : τ ∈ Γ) →
+  χ : ∀{n τ}
+    (i : (n , τ) ∈ Γ) →
     --------------
     Γ ⊢e:↑ τ
 
@@ -113,17 +112,16 @@ data _⊢e:↓_ Γ where
     ⟫ Γ ⊢e:↓ τ
 
   `λ : ∀ {τ τ′} →
-    ⟫ τ ∷ Γ ⊢ e :↓ τ′ τ
+    ⟫ (local , τ) ∷ Γ ⊢ e :↓ τ′ τ
     ------------------
     ⟫ Γ ⊢e:↓ Π τ τ′
 
 eval↑ (_ :ʳ e) vs = eval↓ e vs
 eval↑ ⋆ _ = ⋆
 eval↑ (Π ρ ρ′) vs = Π (eval↓ ρ vs) λ v → eval↓ ρ′ (v ∷ vs)
-eval↑ (χ p) vs with name p
-... | nothing = elim-lookup
+eval↑ (χ {global label} _) _ = [ χ label ]
+eval↑ (χ {local} p) vs = elim-lookup
   [ χ "<invalid lookup>" ] (vs ! index p)
-... | just n = [ χ n ]
 eval↑ (e $ e′) vs with eval↑ e vs
 ... | `λ λx→v = λx→v (eval↓ e′ vs)
 ... | [ n ] = [ n $ eval↓ e′ vs ]
@@ -134,13 +132,13 @@ eval↓ (`λ e) vs = `λ λ v → eval↓ e (v ∷ vs)
 
 -----------------------------------------------------------------
 
-idt : (⋆ ∷ []) ⊢e:↑ ⋆
+idt : ((global "Bool", ⋆) ∷ []) ⊢e:↑ ⋆
 idt = Π [ ⋆ ]
-  [ Π [ χ (here nothing) ] [ χ (there (here nothing)) ] ]
+  [ Π [ χ here ] [ χ (there here) ] ]
 
 id' : _ ⊢e:↑ _
-id' = [ idt ] :ʳ `λ (`λ [ χ (here nothing) ])
+id' = [ idt ] :ʳ `λ (`λ [ χ here ])
 
 idBool : _ ⊢e:↑ _
-idBool = id' $ [ χ (here (just "Bool")) ]
+idBool = id' $ [ χ here ]
 
