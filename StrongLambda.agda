@@ -135,14 +135,12 @@ eval↓ (`λ e) vs = `λ λ v → eval↓ e (v ∷ vs)
 -----------------------------------------------------------------
 
 idt : (⋆ ∷ []) ⊢e:↑ ⋆
-idt = Π [ ⋆ ] [ Π [ χ (here nothing) ] [ χ (there (here nothing)) ] ]
+idt = Π [ ⋆ ]
+  [ Π [ χ (here nothing) ] [ χ (there (here nothing)) ] ]
 
-ide : (⋆ ∷ []) ⊢e:↓ eval↑ idt []
-ide = `λ (`λ [ χ (here nothing) ])
+id' : _ ⊢e:↑ _
+id' = [ idt ] :ʳ `λ (`λ [ χ (here nothing) ])
 
-id' : (⋆ ∷ []) ⊢e:↑ _
-id' = [ idt ] :ʳ ide
-
-idBool : (⋆ ∷ []) ⊢e:↑ _
+idBool : _ ⊢e:↑ _
 idBool = id' $ [ χ (here (just "Bool")) ]
 
