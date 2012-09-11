@@ -63,6 +63,9 @@ check ctx it = case iType0 ctx it of
   Left str -> str
   Right v -> "type: " ++ show (quote0 v)
 
+eval :: Env -> ITerm -> String
+eval env it = "value: " ++ show (quote0 (iEval it env))
+
 iType0 :: Context -> ITerm -> Result Value
 iType0 = iType 0
 

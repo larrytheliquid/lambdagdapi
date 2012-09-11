@@ -8,12 +8,35 @@ infixr 3 Γ⊢e:↑τ Γ⊢e:↓τ
 syntax Γ⊢e:↑τ Γ τ (λ e → X) = Γ ⊢ e :↑ τ ⟫ X
 syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ⟫ X
 
+----------------------------------------------------------------------
+
 ⟫_ : ∀{a} {A : Set a} → A → A
 ⟫ x = x
 
 data _∈_ {A : Set} (x : A) : List A → Set where
   here : ∀{xs} → x ∈ (x ∷ xs )
   there : ∀{y xs} → x ∈ xs → x ∈ (y ∷ xs)
+
+index : ∀ {A} {x : A} {xs} → x ∈ xs → ℕ
+index here = zero
+index (there p) = suc (index p)
+
+data Lookup {A : Set} (xs : List A) : ℕ → Set where
+  inside : (x : A)(p : x ∈ xs) → Lookup xs (index p)
+  outside : (m : ℕ) → Lookup xs (length xs + m)
+
+elim-lookup : {A : Set} {xs : List A} {n : ℕ} → A → Lookup xs n → A
+elim-lookup _ (inside x _) = x
+elim-lookup x (outside _) = x
+
+_!_ : {A : Set} (xs : List A) (n : ℕ) → Lookup xs n
+[] ! n = outside n
+(x ∷ xs) ! zero = inside x here
+(x ∷ xs) ! suc n with xs ! n
+(x ∷ xs) ! suc .(index p) | inside y p = inside y (there p)
+(x ∷ xs) ! suc .(length xs + n) | outside n = outside n
+
+----------------------------------------------------------------------
 
 data Name : Set where
   global : String → Name
@@ -36,8 +59,8 @@ Context = List Value
 
 data _⊢e:↑_ Context : Value → Set
 data _⊢e:↓_ Context : Value → Set
-eval↑ : ∀{Γ τ} → Γ ⊢e:↑ τ → Value
-eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Value
+eval↑ : ∀{Γ τ} → Γ ⊢e:↑ τ → Context → Value
+eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Context → Value
 
 Γ⊢e:↑τ : (Γ : Context) (τ : Value) →
   (Γ ⊢e:↑ τ → Set) → Set
@@ -50,7 +73,7 @@ eval↓ : ∀{Γ τ} → Γ ⊢e:↓ τ → Value
 data _⊢e:↑_ Γ where
   _:ʳ_ :
     ⟫ Γ ⊢ ρ :↓ ⋆
-    ⟫ let τ = eval↓ ρ in
+    ⟫ let τ = eval↓ ρ [] in
     ⟫ Γ ⊢ e :↓ τ
     --------------------
     ⟫ Γ ⊢e:↑ τ
@@ -61,7 +84,7 @@ data _⊢e:↑_ Γ where
 
   Π :
     ⟫ Γ ⊢ ρ :↓ ⋆
-    ⟫ let τ = eval↓ ρ in
+    ⟫ let τ = eval↓ ρ [] in
     ⟫ τ ∷ Γ ⊢ ρ′ :↓ ⋆
     --------------------
     ⟫ Γ ⊢e:↑ ⋆
@@ -74,7 +97,7 @@ data _⊢e:↑_ Γ where
   _$_ : ∀{τ τ′} →
     ⟫ Γ ⊢ e :↑ Π τ τ′
     ⟫ Γ ⊢ e′ :↓ τ
-    ⟫ let τ′′ = τ′ (eval↓ e′) in
+    ⟫ let τ′′ = τ′ (eval↓ e′ []) in
     --------------------------
     ⟫ Γ ⊢e:↑ τ′′
 
@@ -89,26 +112,28 @@ data _⊢e:↓_ Γ where
     ------------------
     ⟫ Γ ⊢e:↓ Π τ τ′
 
-eval↑ (_ :ʳ e) = eval↓ e
-eval↑ ⋆ = ⋆
-eval↑ (Π ρ ρ′) = Π (eval↓ ρ) (λ _ → eval↓ ρ′)
-eval↑ (χ {τ} _) = τ -- TODO
-eval↑ (e $ e′) with eval↑ e
-... | `λ λx→v = λx→v (eval↓ e′)
-... | [ n ] = [ n $ eval↓ e′ ]
-... | x = x -- BAD
+eval↑ (_ :ʳ e) vs = eval↓ e vs
+eval↑ ⋆ _ = ⋆
+eval↑ (Π ρ ρ′) vs = Π (eval↓ ρ vs) λ v → eval↓ ρ′ (v ∷ vs)
+eval↑ (χ p) vs = elim-lookup [ χ "fail" ] (vs ! index p)
+eval↑ (e $ e′) vs with eval↑ e vs
+... | `λ λx→v = λx→v (eval↓ e′ vs)
+... | [ n ] = [ n $ eval↓ e′ vs ]
+... | x = x -- NEVER
 
-eval↓ [ e ] = eval↑ e
-eval↓ (`λ e) = `λ λ _ → eval↓ e
+eval↓ [ e ] vs = eval↑ e vs
+eval↓ (`λ e) vs = `λ λ v → eval↓ e (v ∷ vs)
 
 ----------------------------------------------------------------------
 
-idt : ([ χ "Bool" ] ∷ []) ⊢e:↑ ⋆
+idt : (⋆ ∷ []) ⊢e:↑ ⋆
 idt = Π [ ⋆ ] [ Π [ χ here ] [ χ (there here) ] ]
 
-ide : ([ χ "Bool" ] ∷ []) ⊢e:↓ eval↑ idt
+ide : (⋆ ∷ []) ⊢e:↓ eval↑ idt ([ χ "Bool" ] ∷ [])
 ide = `λ (`λ [ χ here ])
 
-id' : ([ χ "Bool" ] ∷ []) ⊢e:↑ _
+id' : (⋆ ∷ []) ⊢e:↑ _
 id' = [ idt ] :ʳ ide
 
+idBool : (⋆ ∷ []) ⊢e:↑ _
+idBool = id' $ [ χ here ]
