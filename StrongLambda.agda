@@ -1,6 +1,7 @@
 {-# OPTIONS --no-positivity-check #-}
 open import Data.Nat hiding ( _≟_ )
 open import Data.String
+open import Data.Maybe
 open import Data.List hiding ( [_] )
 module StrongLambda where
 
@@ -8,39 +9,43 @@ infixr 3 Γ⊢e:↑τ Γ⊢e:↓τ
 syntax Γ⊢e:↑τ Γ τ (λ e → X) = Γ ⊢ e :↑ τ ⟫ X
 syntax Γ⊢e:↓τ Γ τ (λ e → X) = Γ ⊢ e :↓ τ ⟫ X
 
-----------------------------------------------------------------------
+-----------------------------------------------------------------
 
 ⟫_ : ∀{a} {A : Set a} → A → A
 ⟫ x = x
 
 data _∈_ {A : Set} (x : A) : List A → Set where
-  here : ∀{xs} → x ∈ (x ∷ xs )
+  here : ∀{xs} → (n : Maybe String) → x ∈ (x ∷ xs )
   there : ∀{y xs} → x ∈ xs → x ∈ (y ∷ xs)
 
+name : ∀ {A} {x : A} {xs} → x ∈ xs → Maybe String
+name (here nothing) = nothing
+name (here (just n)) = just n
+name (there p) = name p
+
 index : ∀ {A} {x : A} {xs} → x ∈ xs → ℕ
-index here = zero
+index (here _) = zero
 index (there p) = suc (index p)
 
 data Lookup {A : Set} (xs : List A) : ℕ → Set where
   inside : (x : A)(p : x ∈ xs) → Lookup xs (index p)
   outside : (m : ℕ) → Lookup xs (length xs + m)
 
-elim-lookup : {A : Set} {xs : List A} {n : ℕ} → A → Lookup xs n → A
+elim-lookup : {A : Set} {xs : List A} {n : ℕ} →
+  A → Lookup xs n → A
 elim-lookup _ (inside x _) = x
 elim-lookup x (outside _) = x
 
 _!_ : {A : Set} (xs : List A) (n : ℕ) → Lookup xs n
 [] ! n = outside n
-(x ∷ xs) ! zero = inside x here
+(x ∷ xs) ! zero = inside x (here nothing)
 (x ∷ xs) ! suc n with xs ! n
 (x ∷ xs) ! suc .(index p) | inside y p = inside y (there p)
 (x ∷ xs) ! suc .(length xs + n) | outside n = outside n
 
-----------------------------------------------------------------------
+-----------------------------------------------------------------
 
-data Name : Set where
-  global : String → Name
-  local : ℕ → Name
+Name = Maybe String
 
 data Value : Set
 data Neutral : Set
@@ -115,25 +120,29 @@ data _⊢e:↓_ Γ where
 eval↑ (_ :ʳ e) vs = eval↓ e vs
 eval↑ ⋆ _ = ⋆
 eval↑ (Π ρ ρ′) vs = Π (eval↓ ρ vs) λ v → eval↓ ρ′ (v ∷ vs)
-eval↑ (χ p) vs = elim-lookup [ χ "fail" ] (vs ! index p)
+eval↑ (χ p) vs with name p
+... | nothing = elim-lookup
+  [ χ "<invalid lookup>" ] (vs ! index p)
+... | just n = [ χ n ]
 eval↑ (e $ e′) vs with eval↑ e vs
 ... | `λ λx→v = λx→v (eval↓ e′ vs)
 ... | [ n ] = [ n $ eval↓ e′ vs ]
-... | x = x -- NEVER
+... | _ = [ χ "<invalid application>" ]
 
 eval↓ [ e ] vs = eval↑ e vs
 eval↓ (`λ e) vs = `λ λ v → eval↓ e (v ∷ vs)
 
-----------------------------------------------------------------------
+-----------------------------------------------------------------
 
 idt : (⋆ ∷ []) ⊢e:↑ ⋆
-idt = Π [ ⋆ ] [ Π [ χ here ] [ χ (there here) ] ]
+idt = Π [ ⋆ ] [ Π [ χ (here nothing) ] [ χ (there (here nothing)) ] ]
 
-ide : (⋆ ∷ []) ⊢e:↓ eval↑ idt ([ χ "Bool" ] ∷ [])
-ide = `λ (`λ [ χ here ])
+ide : (⋆ ∷ []) ⊢e:↓ eval↑ idt []
+ide = `λ (`λ [ χ (here nothing) ])
 
 id' : (⋆ ∷ []) ⊢e:↑ _
 id' = [ idt ] :ʳ ide
 
 idBool : (⋆ ∷ []) ⊢e:↑ _
-idBool = id' $ [ χ here ]
+idBool = id' $ [ χ (here (just "Bool")) ]
+
