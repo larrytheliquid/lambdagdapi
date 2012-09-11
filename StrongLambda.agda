@@ -54,10 +54,7 @@ data Neutral where
   χ : String → Neutral
   _$_ : (n : Neutral) (v : Value) → Neutral
 
-data Name : Set where
-  local : Name
-  global : (label : String) → Name
-
+Name = Maybe String
 Context = List (Name × Value)
 Environment = List Value
 
@@ -89,7 +86,7 @@ data _⊢e:↑_ Γ where
   Π :
     ⟫ Γ ⊢ ρ :↓ ⋆
     ⟫ let τ = eval↓ ρ [] in
-    ⟫ (local , τ) ∷ Γ ⊢ ρ′ :↓ ⋆
+    ⟫ (nothing , τ) ∷ Γ ⊢ ρ′ :↓ ⋆
     --------------------
     ⟫ Γ ⊢e:↑ ⋆
 
@@ -112,15 +109,15 @@ data _⊢e:↓_ Γ where
     ⟫ Γ ⊢e:↓ τ
 
   `λ : ∀ {τ τ′} →
-    ⟫ (local , τ) ∷ Γ ⊢ e :↓ τ′ τ
+    ⟫ (nothing , τ) ∷ Γ ⊢ e :↓ τ′ τ
     ------------------
     ⟫ Γ ⊢e:↓ Π τ τ′
 
 eval↑ (_ :ʳ e) vs = eval↓ e vs
 eval↑ ⋆ _ = ⋆
 eval↑ (Π ρ ρ′) vs = Π (eval↓ ρ vs) λ v → eval↓ ρ′ (v ∷ vs)
-eval↑ (χ {global label} _) _ = [ χ label ]
-eval↑ (χ {local} p) vs = elim-lookup
+eval↑ (χ {just label} _) _ = [ χ label ]
+eval↑ (χ {nothing} p) vs = elim-lookup
   [ χ "<invalid lookup>" ] (vs ! index p)
 eval↑ (e $ e′) vs with eval↑ e vs
 ... | `λ λx→v = λx→v (eval↓ e′ vs)
@@ -132,7 +129,7 @@ eval↓ (`λ e) vs = `λ λ v → eval↓ e (v ∷ vs)
 
 -----------------------------------------------------------------
 
-idt : ((global "Bool", ⋆) ∷ []) ⊢e:↑ ⋆
+idt : ((just "Bool", ⋆) ∷ (just "false", [ χ "Bool" ]) ∷ []) ⊢e:↑ _
 idt = Π [ ⋆ ]
   [ Π [ χ here ] [ χ (there here) ] ]
 
@@ -141,4 +138,7 @@ id' = [ idt ] :ʳ `λ (`λ [ χ here ])
 
 idBool : _ ⊢e:↑ _
 idBool = id' $ [ χ here ]
+
+idFalse : _ ⊢e:↑ _
+idFalse = idBool $ [ χ (there here) ]
 
